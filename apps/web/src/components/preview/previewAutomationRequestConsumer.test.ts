@@ -324,6 +324,74 @@ describe("previewAutomationRequestConsumer", () => {
     });
   });
 
+  it.each([
+    {
+      tag: "PreviewAutomationKeyboardWindowNotFocusedError",
+      message:
+        "Preview automation press request request-press cannot send keyboard input because the desktop window is not focused.",
+    },
+    {
+      tag: "PreviewAutomationKeyboardFocusedFrameUnsupportedError",
+      message:
+        "Preview automation press request request-press cannot send keyboard input to a focused frame.",
+    },
+    {
+      tag: "PreviewAutomationKeyboardDeliveryNotConfirmedError",
+      message:
+        "Preview automation press request request-press did not receive keyboard delivery confirmation from tab tab-1.",
+    },
+  ] as const)("preserves the $tag message", ({ tag, message }) => {
+    expect(
+      serializePreviewAutomationError(
+        {
+          _tag: tag,
+          tabId: "tab-1",
+          webContentsId: 42,
+        },
+        {
+          requestId: "request-press",
+          operation: "press",
+          environmentId,
+          threadId,
+          tabId,
+        },
+      ),
+    ).toEqual({
+      _tag: "PreviewAutomationExecutionError",
+      message,
+      detail: {
+        requestId: "request-press",
+        operation: "press",
+        environmentId: "environment-1",
+        threadId: "thread-1",
+        tabId: "tab-1",
+      },
+    });
+  });
+
+  it("maps a replaced desktop keyboard target to an unavailable response", () => {
+    expect(
+      serializePreviewAutomationError(
+        {
+          _tag: "PreviewAutomationTargetChangedError",
+          operation: "press",
+          tabId: "tab-1",
+          webContentsId: 42,
+        },
+        {
+          requestId: "request-press",
+          operation: "press",
+          environmentId,
+          threadId,
+          tabId,
+        },
+      ),
+    ).toMatchObject({
+      _tag: "PreviewAutomationTabNotFoundError",
+      detail: { tabId: "tab-1", bridgeAvailable: true },
+    });
+  });
+
   it("correlates unexpected failures without exposing cause details", () => {
     const cause = new Error("private bridge token: preview-secret");
     const context = {
